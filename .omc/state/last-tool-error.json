@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"bun install 2>&1\",\"timeout\":30000,\"description\":\"Install dependencies\"}",
+  "error": "Exit code 127\n(eval):1: command not found: bun",
+  "timestamp": "2026-04-06T22:51:17.211Z",
+  "retry_count": 1
+}
