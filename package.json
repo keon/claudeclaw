@@ -1,48 +1,25 @@
 {
-  "name": "claude-claw",
-  "version": "0.1.0",
-  "description": "Telegram-native Claude Code agent harness for Bun",
+  "name": "claudeclaw",
+  "version": "0.2.0",
+  "description": "Multi-channel Claude Code agent harness — Telegram, Slack, and more",
   "license": "MIT",
-  "private": false,
-  "packageManager": "bun@1.3.9",
   "type": "module",
-  "engines": {
-    "bun": ">=1.3.5"
-  },
-  "bin": {
-    "claude-claw": "bin/claude-claw"
-  },
-  "keywords": [
-    "telegram",
-    "bot",
-    "claude",
-    "anthropic",
-    "grammy",
-    "bun",
-    "agent",
-    "claude-code"
-  ],
-  "files": [
-    "bin",
-    "src",
-    "README.md",
-    "LICENSE"
-  ],
-  "publishConfig": {
-    "access": "public"
-  },
+  "packageManager": "bun@1.3.9",
+  "engines": { "bun": ">=1.3.5" },
   "scripts": {
-    "check": "bun test && bun run typecheck",
-    "dev": "bun --watch src/index.ts",
-    "start": "bun src/index.ts",
-    "test": "bun test",
-    "typecheck": "tsc --noEmit"
+    "start:telegram": "bun telegram/server.ts",
+    "start:slack": "bun slack/server.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@slack/bolt": "^4.3.0",
+    "grammy": "^1.21.0",
+    "zod": "^3.24.0"
   },
   "devDependencies": {
     "@types/bun": "latest",
     "typescript": "^5.9.3"
-  },
-  "dependencies": {
-    "grammy": "1.41.1"
   }
 }

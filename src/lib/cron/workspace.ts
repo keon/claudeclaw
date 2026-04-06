@@ -1,6 +1,10 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { resolveClaudeClawHomeDir } from "../lib/paths";
+import os from "node:os";
+
+export function resolveClaudeClawHomeDir(): string {
+  return path.join(os.homedir(), ".claude-claw");
+}
 
 export function resolveCronJobsDir(homeDir = resolveClaudeClawHomeDir()): string {
   return path.join(homeDir, "cronjobs");

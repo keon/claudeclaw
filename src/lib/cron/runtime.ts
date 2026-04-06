@@ -4,7 +4,13 @@ import { parseScheduledJobDefinition } from "./parser";
 import { createScheduledJobScheduler } from "./scheduler";
 import type { ScheduledJobIssue, ScheduledJobSpec } from "./types";
 import { disableScheduledJobDefinition } from "./workspace";
-import { formatCronCompletedMessage } from "../bot/formatters";
+
+function formatCronCompletedMessage(summary?: string | null): string {
+  const detail = summary
+    ? summary.replace(/\r\n?/g, "\n").replace(/[ \t]+\n/g, "\n").trim()
+    : "";
+  return detail.length === 0 ? "Cron run completed." : detail;
+}
 
 type RefreshReport = {
   registered: string[];

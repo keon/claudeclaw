@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "claudeclaw-telegram": {
+      "command": "bun",
+      "args": ["run", "--cwd", "${CLAUDE_PLUGIN_ROOT}", "telegram/server.ts"],
+      "env": {}
+    },
+    "claudeclaw-slack": {
+      "command": "bun",
+      "args": ["run", "--cwd", "${CLAUDE_PLUGIN_ROOT}", "slack/server.ts"],
+      "env": {}
+    }
+  }
+}
