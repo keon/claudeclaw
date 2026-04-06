@@ -16,6 +16,7 @@ import {
 import { saveToInbox, assertSendable, readSendableFile } from "../src/lib/files";
 import { chunkMessage } from "../src/lib/chunker";
 import { createChannelLogger } from "../src/lib/logging";
+import { createChannelCron } from "../src/lib/channel-cron";
 
 const CHANNEL_NAME = "claudeclaw-slack";
 const MAX_TEXT_LENGTH = 3000;
@@ -364,8 +365,14 @@ try {
   console.error("[claudeclaw-slack] failed to get bot identity:", error);
 }
 
+// Start cron system
+const cron = createChannelCron(mcp, CHANNEL_NAME);
+await cron.start();
+console.error(`[claudeclaw-slack] cron system started`);
+
 // Graceful shutdown
 const shutdown = async () => {
+  cron.stop();
   await app.stop();
   process.exit(0);
 };

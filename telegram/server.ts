@@ -11,6 +11,7 @@ import { PermissionRequestSchema, parsePermissionVerdict, emitPermissionVerdict,
 import { saveToInbox, assertSendable, readSendableFile } from "../src/lib/files";
 import { chunkMessage } from "../src/lib/chunker";
 import { createChannelLogger } from "../src/lib/logging";
+import { createChannelCron } from "../src/lib/channel-cron";
 
 const CHANNEL_NAME = "claudeclaw-telegram";
 const MAX_TEXT_LENGTH = 4096;
@@ -490,8 +491,14 @@ void bot.start({
   },
 });
 
+// Start cron system
+const cron = createChannelCron(mcp, CHANNEL_NAME);
+await cron.start();
+console.error(`[claudeclaw-telegram] cron system started`);
+
 // Graceful shutdown
 const shutdown = () => {
+  cron.stop();
   bot.stop();
   process.exit(0);
 };
