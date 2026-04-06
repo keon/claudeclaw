@@ -10,9 +10,11 @@ import { checkAccess, loadAccessState } from "../src/lib/access";
 import { PermissionRequestSchema, parsePermissionVerdict, emitPermissionVerdict, formatPermissionPrompt } from "../src/lib/permissions";
 import { saveToInbox, assertSendable, readSendableFile } from "../src/lib/files";
 import { chunkMessage } from "../src/lib/chunker";
+import { createChannelLogger } from "../src/lib/logging";
 
 const CHANNEL_NAME = "claudeclaw-telegram";
 const MAX_TEXT_LENGTH = 4096;
+const logger = createChannelLogger(CHANNEL_NAME);
 
 // --- Resolve Telegram bot token ---
 const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -53,6 +55,26 @@ const bot = new Bot(token);
 
 // Track sent messages for edit support
 const sentMessages = new Map<string, number[]>(); // chatId -> messageIds
+
+// Typing heartbeat state
+const typingHeartbeats = new Map<string, Timer>();
+
+function startTyping(chatId: string) {
+  stopTyping(chatId);
+  void bot.api.sendChatAction(Number(chatId), "typing").catch(() => {});
+  const interval = setInterval(() => {
+    void bot.api.sendChatAction(Number(chatId), "typing").catch(() => {});
+  }, 4000);
+  typingHeartbeats.set(chatId, interval);
+}
+
+function stopTyping(chatId: string) {
+  const existing = typingHeartbeats.get(chatId);
+  if (existing !== undefined) {
+    clearInterval(existing);
+    typingHeartbeats.delete(chatId);
+  }
+}
 
 // --- Tools ---
 mcp.setRequestHandler(ListToolsRequestSchema, async () => ({
@@ -128,6 +150,7 @@ mcp.setRequestHandler(CallToolRequestSchema, async (req) => {
     };
 
     const chatId = Number(chat_id);
+    stopTyping(chat_id);
     const chunks = chunkMessage(text, { maxLength: MAX_TEXT_LENGTH });
     const messageIds: number[] = [];
 
@@ -164,6 +187,8 @@ mcp.setRequestHandler(CallToolRequestSchema, async (req) => {
     }
 
     sentMessages.set(chat_id, [...(sentMessages.get(chat_id) ?? []), ...messageIds]);
+
+    await logger.logOutbound({ chatId: chat_id, content: text, tool: "reply" });
     return { content: [{ type: "text", text: `Sent ${chunks.length} message(s), IDs: ${messageIds.join(", ")}` }] };
   }
 
@@ -213,6 +238,71 @@ mcp.setNotificationHandler(PermissionRequestSchema, async ({ params }) => {
   }
 });
 
+// --- Album Coalescing ---
+type PendingAlbum = {
+  chatId: string;
+  senderId: string;
+  senderName: string;
+  caption: string | null;
+  items: Array<{ type: string; fileId: string; text?: string }>;
+  timer: Timer;
+  messageIds: number[];
+};
+
+const pendingAlbums = new Map<string, PendingAlbum>();
+const ALBUM_QUIET_PERIOD_MS = 500;
+
+async function finalizeAlbum(mediaGroupId: string): Promise<void> {
+  const album = pendingAlbums.get(mediaGroupId);
+  if (!album) return;
+  pendingAlbums.delete(mediaGroupId);
+
+  const parts: string[] = [];
+  const meta: Record<string, string> = {
+    chat_id: album.chatId,
+    sender_id: album.senderId,
+    sender_name: album.senderName,
+    message_id: String(album.messageIds[0]),
+    media_group_id: mediaGroupId,
+  };
+
+  if (album.caption) {
+    parts.push(album.caption);
+  }
+
+  for (const item of album.items) {
+    if (item.type === "photo") {
+      try {
+        const file = await bot.api.getFile(item.fileId);
+        if (file.file_path) {
+          const response = await fetch(`https://api.telegram.org/file/bot${token}/${file.file_path}`);
+          if (response.ok) {
+            const bytes = new Uint8Array(await response.arrayBuffer());
+            const name = file.file_path.split("/").pop() ?? "photo.jpg";
+            const savedPath = await saveToInbox(CHANNEL_NAME, name, bytes);
+            parts.push(`[Photo saved to: ${savedPath}]`);
+            continue;
+          }
+        }
+      } catch {}
+      parts.push(`[Photo, file_id: ${item.fileId} — use download_attachment]`);
+    } else if (item.type === "document") {
+      parts.push(`[Document: file_id: ${item.fileId} — use download_attachment]`);
+    } else if (item.type === "video") {
+      parts.push(`[Video: file_id: ${item.fileId} — use download_attachment]`);
+    }
+  }
+
+  if (parts.length === 0) {
+    parts.push(`[Album with ${album.items.length} items]`);
+  }
+
+  await mcp.notification({
+    method: "notifications/claude/channel" as any,
+    params: { content: parts.join("\n"), meta },
+  });
+}
+
 // --- Message Handling ---
 bot.on("message", async (ctx) => {
   const senderId = String(ctx.from?.id ?? "");
@@ -246,6 +336,46 @@ bot.on("message", async (ctx) => {
 
   // Acknowledge receipt
   await ctx.react("👀").catch(() => {});
+  startTyping(chatId);
+
+  // Album coalescing
+  const mediaGroupId = ctx.message.media_group_id;
+  if (mediaGroupId) {
+    const existing = pendingAlbums.get(mediaGroupId);
+
+    // Determine what this message contributes
+    let item: { type: string; fileId: string } | null = null;
+    if (ctx.message.photo && ctx.message.photo.length > 0) {
+      const largest = ctx.message.photo.reduce((a, b) => (a.width * a.height > b.width * b.height) ? a : b);
+      item = { type: "photo", fileId: largest.file_id };
+    } else if (ctx.message.document) {
+      item = { type: "document", fileId: ctx.message.document.file_id };
+    } else if (ctx.message.video) {
+      item = { type: "video", fileId: ctx.message.video.file_id };
+    }
+
+    if (existing) {
+      clearTimeout(existing.timer);
+      if (item) existing.items.push(item);
+      if (ctx.message.caption && !existing.caption) existing.caption = ctx.message.caption;
+      existing.messageIds.push(ctx.message.message_id);
+      existing.timer = setTimeout(() => finalizeAlbum(mediaGroupId), ALBUM_QUIET_PERIOD_MS);
+      return; // Don't process individually
+    }
+
+    // New album
+    const album: PendingAlbum = {
+      chatId,
+      senderId,
+      senderName,
+      caption: ctx.message.caption ?? null,
+      items: item ? [item] : [],
+      messageIds: [ctx.message.message_id],
+      timer: setTimeout(() => finalizeAlbum(mediaGroupId), ALBUM_QUIET_PERIOD_MS),
+    };
+    pendingAlbums.set(mediaGroupId, album);
+    return; // Don't process individually
+  }
 
   // Build notification content
   const parts: string[] = [];
@@ -255,8 +385,26 @@ bot.on("message", async (ctx) => {
     sender_name: senderName,
   };
 
+  // Reply context
   if (ctx.message.reply_to_message) {
-    meta.reply_to_message_id = String(ctx.message.reply_to_message.message_id);
+    const reply = ctx.message.reply_to_message;
+    meta.reply_to_message_id = String(reply.message_id);
+
+    const replyParts: string[] = [];
+    const replyFrom = reply.from;
+    if (replyFrom) {
+      const name = [replyFrom.first_name, replyFrom.last_name].filter(Boolean).join(" ");
+      replyParts.push(`From: ${name || replyFrom.username || "Unknown"}`);
+    }
+    if ("text" in reply && reply.text) {
+      replyParts.push(`Text: ${reply.text}`);
+    }
+    if ("caption" in reply && reply.caption) {
+      replyParts.push(`Caption: ${reply.caption}`);
+    }
+    if (replyParts.length > 0) {
+      parts.push(`[Replying to message ${reply.message_id}]\n${replyParts.join("\n")}`);
+    }
   }
 
   // Text
@@ -328,6 +476,8 @@ bot.on("message", async (ctx) => {
       meta,
     },
   });
+
+  await logger.logInbound({ chatId, senderId, senderName, content: parts.join("\n"), meta });
 });
 
 // --- Connect and Start ---

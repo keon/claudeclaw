@@ -15,9 +15,11 @@ import {
 } from "../src/lib/permissions";
 import { saveToInbox, assertSendable, readSendableFile } from "../src/lib/files";
 import { chunkMessage } from "../src/lib/chunker";
+import { createChannelLogger } from "../src/lib/logging";
 
 const CHANNEL_NAME = "claudeclaw-slack";
 const MAX_TEXT_LENGTH = 3000;
+const logger = createChannelLogger(CHANNEL_NAME);
 
 // --- Resolve tokens ---
 const botToken = process.env.SLACK_BOT_TOKEN;
@@ -171,6 +173,7 @@ mcp.setRequestHandler(CallToolRequestSchema, async (req) => {
       }
     }
 
+    await logger.logOutbound({ chatId: channel_id, content: text, tool: "reply" });
     return {
       content: [{ type: "text", text: `Sent ${chunks.length} message(s), timestamps: ${timestamps.join(", ")}` }],
     };
@@ -342,6 +345,8 @@ app.message(async ({ message, say }) => {
       meta,
     },
   });
+
+  await logger.logInbound({ chatId: channelId, senderId, senderName, content: parts.join("\n"), meta });
 });
 
 // --- Connect and Start ---
