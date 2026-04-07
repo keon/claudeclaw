@@ -1,6 +1,10 @@
-# claudeclaw
+<p align="center">
+  <img src="assets/logo.png" width="200" alt="claudeclaw" />
+</p>
 
-Multi-channel Claude Code agent harness — Telegram, Slack, and more.
+<h1 align="center">claudeclaw</h1>
+
+<p align="center">Multi-channel Claude Code agent harness — Telegram, Slack, and more.</p>
 
 claudeclaw uses [Claude Code channels](https://code.claude.com/docs/en/channels-reference) to bridge messaging platforms directly into a Claude Code session. Instead of spawning a CLI subprocess per message, each channel runs as an MCP server **inside** the session — giving Claude full access to tools, context, MCP servers, and conversation history natively.
 
