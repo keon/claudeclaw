@@ -2,16 +2,11 @@
   "mcpServers": {
     "claudeclaw-telegram": {
       "command": "bun",
-      "args": ["telegram/server.ts"],
-      "env": {}
+      "args": ["telegram/server.ts"]
     },
     "claudeclaw-slack": {
       "command": "bun",
-      "args": ["slack/server.ts"],
-      "env": {
-        "SLACK_BOT_TOKEN": "",
-        "SLACK_APP_TOKEN": ""
-      }
+      "args": ["slack/server.ts"]
     }
   }
 }

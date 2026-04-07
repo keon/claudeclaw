@@ -24,7 +24,8 @@ Claude Code session
         ├── permissions.ts  — remote tool approval from phone
         ├── files.ts        — inbox/outbox (50MB limit)
         ├── chunker.ts      — platform-aware message splitting
-        └── cron/           — scheduled prompt system
+        ├── logging.ts      — structured JSON logs per event
+        └── channel-cron.ts — scheduled prompt system
 ```
 
 ## Setup
@@ -33,14 +34,17 @@ Claude Code session
 git clone https://github.com/keon/claudeclaw.git
 cd claudeclaw
 bun install
+cp .env.example .env.local
 ```
+
+Edit `.env.local` with your tokens, then start a channel.
 
 ### Telegram
 
 1. Create a bot via [@BotFather](https://t.me/BotFather)
-2. Set your token:
-   ```bash
-   export TELEGRAM_BOT_TOKEN="your-token"
+2. Add your token to `.env.local`:
+   ```
+   TELEGRAM_BOT_TOKEN=your-token-here
    ```
 3. Start Claude Code with the channel:
    ```bash
@@ -55,10 +59,10 @@ bun install
 3. Add **Bot Token Scopes**: `chat:write`, `reactions:write`, `files:write`, `files:read`, `users:read`, `im:history`, `channels:history`
 4. Enable **Event Subscriptions** — subscribe to `message.im` (and `message.channels` for channels)
 5. Install to your workspace and copy the bot token (`xoxb-...`)
-6. Set tokens:
-   ```bash
-   export SLACK_BOT_TOKEN="xoxb-..."
-   export SLACK_APP_TOKEN="xapp-..."
+6. Add tokens to `.env.local`:
+   ```
+   SLACK_BOT_TOKEN=xoxb-...
+   SLACK_APP_TOKEN=xapp-...
    ```
 7. Start Claude Code with the channel:
    ```bash
@@ -71,14 +75,10 @@ bun install
 Run both simultaneously:
 
 ```bash
-export TELEGRAM_BOT_TOKEN="..."
-export SLACK_BOT_TOKEN="..."
-export SLACK_APP_TOKEN="..."
-
 claude --dangerously-load-development-channels server:claudeclaw-telegram server:claudeclaw-slack
 ```
 
-## Channel features
+## Features
 
 | Feature | Telegram | Slack |
 |---------|----------|-------|
@@ -88,6 +88,36 @@ claude --dangerously-load-development-channels server:claudeclaw-telegram server
 | **download_attachment** | By file_id | Auto-download on receive |
 | **Permission relay** | Approve/deny tool use via DM | Approve/deny tool use via DM |
 | **Access control** | Pairing codes | Pairing codes |
+| **Typing indicator** | Shows "typing..." while Claude works | — |
+| **Album coalescing** | Groups multi-photo albums into one message | — |
+| **Reply context** | Includes original message when replying | — |
+| **Structured logging** | JSON logs per event | JSON logs per event |
+| **Cron jobs** | Scheduled prompts | Scheduled prompts |
+
+## Cron jobs
+
+Create JSON files in `~/.claude-claw/cronjobs/` to schedule recurring prompts:
+
+```json
+{
+  "id": "daily-summary",
+  "time": "09:00",
+  "action": { "type": "message", "prompt": "Give me a morning summary of open PRs" }
+}
+```
+
+One-shot jobs (run once, then auto-disable):
+
+```json
+{
+  "id": "reminder",
+  "time": "14:00",
+  "date": "2026-04-07",
+  "action": { "type": "message", "prompt": "Remind me to ship the release" }
+}
+```
+
+Jobs are checked every 60 seconds and emitted as channel notifications for Claude to handle.
 
 ## What you get for free from Claude Code
 
