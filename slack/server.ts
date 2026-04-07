@@ -78,6 +78,9 @@ const app = new App({
 // Get bot's own user ID to ignore self-messages
 let botUserId: string | null = null;
 
+// Track last active chat for cron delivery
+let lastActiveChat: Record<string, string> | null = null;
+
 // --- Tools ---
 mcp.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
@@ -292,6 +295,9 @@ app.message(async ({ message, say }) => {
     // Fall back to sender ID
   }
 
+  // Track for cron delivery
+  lastActiveChat = { channel_id: channelId, sender_id: senderId, sender_name: senderName };
+
   // Build content
   const parts: string[] = [];
   const meta: Record<string, string> = {
@@ -363,7 +369,9 @@ try {
 }
 
 // Start cron system
-const cron = createChannelCron(mcp, CHANNEL_NAME);
+const cron = createChannelCron(mcp, CHANNEL_NAME, {
+  resolveTargetChat: () => lastActiveChat,
+});
 await cron.start();
 console.error(`[claudeclaw-slack] cron system started`);
 

@@ -116,7 +116,10 @@ async function disableOneShotJob(sourcePath: string): Promise<void> {
 export function createChannelCron(
   mcp: Server,
   channelName: string,
-  options: { intervalMs?: number } = {},
+  options: {
+    intervalMs?: number;
+    resolveTargetChat?: () => Record<string, string> | null;
+  } = {},
 ) {
   const intervalMs = options.intervalMs ?? 60_000;
   const executedKeys = new Set<string>();
@@ -139,6 +142,9 @@ export function createChannelCron(
       executedKeys.add(key);
 
       try {
+        // Resolve delivery target (last active chat)
+        const targetChat = options.resolveTargetChat?.() ?? {};
+
         // Emit the cron prompt as a channel notification
         await mcp.notification({
           method: "notifications/claude/channel" as any,
@@ -148,6 +154,7 @@ export function createChannelCron(
               source: "cron",
               job_id: spec.id,
               scheduled_time: spec.time,
+              ...targetChat,
             },
           },
         });

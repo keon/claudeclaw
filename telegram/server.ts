@@ -57,6 +57,9 @@ const bot = new Bot(token);
 // Track sent messages for edit support
 const sentMessages = new Map<string, number[]>(); // chatId -> messageIds
 
+// Track last active chat for cron delivery
+let lastActiveChat: Record<string, string> | null = null;
+
 // Typing heartbeat state
 const typingHeartbeats = new Map<string, Timer>();
 
@@ -335,6 +338,9 @@ bot.on("message", async (ctx) => {
     return;
   }
 
+  // Track for cron delivery
+  lastActiveChat = { chat_id: chatId, sender_id: senderId, sender_name: senderName };
+
   // Acknowledge receipt
   await ctx.react("👀").catch(() => {});
   startTyping(chatId);
@@ -492,7 +498,9 @@ void bot.start({
 });
 
 // Start cron system
-const cron = createChannelCron(mcp, CHANNEL_NAME);
+const cron = createChannelCron(mcp, CHANNEL_NAME, {
+  resolveTargetChat: () => lastActiveChat,
+});
 await cron.start();
 console.error(`[claudeclaw-telegram] cron system started`);
 
