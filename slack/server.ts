@@ -51,8 +51,8 @@ const mcp = new Server(
       "- react: Add an emoji reaction. Use emoji name without colons (e.g. 'thumbsup', 'eyes').",
       "- edit_message: Edit a previously sent message using its timestamp.",
       "",
+      "IMPORTANT: Always reply as a thread. Use the thread_ts from the channel tag — it is always provided.",
       "Keep replies concise. Use Slack mrkdwn formatting (*bold*, _italic_, `code`, ```code block```).",
-      "For threaded conversations, always pass thread_ts to keep the thread going.",
     ].join("\n"),
   },
 );
@@ -299,11 +299,8 @@ app.message(async ({ message, say }) => {
     sender_id: senderId,
     sender_name: senderName,
     message_ts: messageTs,
+    thread_ts: threadTs ?? messageTs,
   };
-
-  if (threadTs) {
-    meta.thread_ts = threadTs;
-  }
 
   // Text content
   if ("text" in message && message.text) {
