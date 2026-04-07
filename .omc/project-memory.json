@@ -93,20 +93,20 @@
   "hotPaths": [
     {
       "path": "telegram/server.ts",
-      "accessCount": 18,
-      "lastAccessed": 1775521394100,
+      "accessCount": 26,
+      "lastAccessed": 1775522039248,
       "type": "file"
     },
     {
       "path": "slack/server.ts",
-      "accessCount": 15,
-      "lastAccessed": 1775521417655,
+      "accessCount": 24,
+      "lastAccessed": 1775522036074,
       "type": "file"
     },
     {
       "path": "src/lib/channel-cron.ts",
-      "accessCount": 4,
-      "lastAccessed": 1775521358656,
+      "accessCount": 6,
+      "lastAccessed": 1775521951290,
       "type": "file"
     },
     {
@@ -125,6 +125,12 @@
       "path": "src/lib/logging.ts",
       "accessCount": 1,
       "lastAccessed": 1775519584023,
+      "type": "file"
+    },
+    {
+      "path": "src/lib/heartbeat.ts",
+      "accessCount": 1,
+      "lastAccessed": 1775522007080,
       "type": "file"
     }
   ],

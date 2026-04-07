@@ -17,6 +17,7 @@ import { saveToInbox, assertSendable, readSendableFile } from "../src/lib/files"
 import { chunkMessage } from "../src/lib/chunker";
 import { createChannelLogger } from "../src/lib/logging";
 import { createChannelCron } from "../src/lib/channel-cron";
+import { createHeartbeat } from "../src/lib/heartbeat";
 
 const CHANNEL_NAME = "claudeclaw-slack";
 const MAX_TEXT_LENGTH = 3000;
@@ -377,9 +378,20 @@ const cron = createChannelCron(mcp, CHANNEL_NAME, {
 await cron.start();
 console.error(`[claudeclaw-slack] cron system started`);
 
+// Start heartbeat
+const heartbeat = createHeartbeat(mcp, CHANNEL_NAME, {
+  every: process.env.CLAUDE_CLAW_HEARTBEAT_INTERVAL ?? "30m",
+  target: "last",
+  activeHours: process.env.CLAUDE_CLAW_HEARTBEAT_HOURS
+    ? { start: process.env.CLAUDE_CLAW_HEARTBEAT_HOURS.split("-")[0], end: process.env.CLAUDE_CLAW_HEARTBEAT_HOURS.split("-")[1] }
+    : undefined,
+}, () => lastActiveChat);
+await heartbeat.start();
+
 // Graceful shutdown
 const shutdown = async () => {
   cron.stop();
+  heartbeat.stop();
   await app.stop();
   process.exit(0);
 };
