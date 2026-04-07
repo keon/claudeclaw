@@ -1,7 +1,0 @@
-{
-  "tool_name": "Read",
-  "tool_input_preview": "{\"file_path\":\"/Users/keon/dev/openclaw/packages/memory-host-sdk/src/host\"}",
-  "error": "EISDIR: illegal operation on a directory, read '/Users/keon/dev/openclaw/packages/memory-host-sdk/src/host'",
-  "timestamp": "2026-04-07T00:27:01.072Z",
-  "retry_count": 2
-}
