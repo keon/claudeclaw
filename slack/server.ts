@@ -53,6 +53,8 @@ const mcp = new Server(
       "",
       "IMPORTANT: Always reply as a thread. Use the thread_ts from the channel tag — it is always provided.",
       "Keep replies concise. Use Slack mrkdwn formatting (*bold*, _italic_, `code`, ```code block```).",
+      "",
+      "Memory: Channel messages are ephemeral and will be compacted. When the user shares important preferences, decisions, facts, or context you should remember, save them to your memory system. This ensures continuity across sessions.",
     ].join("\n"),
   },
 );

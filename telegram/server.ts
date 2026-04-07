@@ -46,6 +46,8 @@ const mcp = new Server(
       "- download_attachment: Download a file attachment from a message.",
       "",
       "When replying, write naturally. Do not include raw code blocks unless the user asked for code.",
+      "",
+      "Memory: Channel messages are ephemeral and will be compacted. When the user shares important preferences, decisions, facts, or context you should remember, save them to your memory system. This ensures continuity across sessions.",
       "Keep replies concise — the user is on a phone.",
     ].join("\n"),
   },
