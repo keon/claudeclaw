@@ -29,7 +29,8 @@ Claude Code session
         ├── files.ts        — inbox/outbox (50MB limit)
         ├── chunker.ts      — platform-aware message splitting
         ├── logging.ts      — structured JSON logs per event
-        └── channel-cron.ts — scheduled prompt system
+        ├── channel-cron.ts — scheduled prompt system
+        └── heartbeat.ts    — periodic agent check-ins
 ```
 
 ## Setup
@@ -97,10 +98,36 @@ claude --dangerously-load-development-channels server:claudeclaw-telegram server
 | **Reply context** | Includes original message when replying | — |
 | **Structured logging** | JSON logs per event | JSON logs per event |
 | **Cron jobs** | Scheduled prompts | Scheduled prompts |
+| **Heartbeat** | Periodic check-ins | Periodic check-ins |
+
+## Heartbeat
+
+Heartbeat runs periodic agent check-ins so Claude can surface anything that needs attention without you asking. Modeled after [OpenClaw's heartbeat system](https://github.com/nicepkg/openclaw).
+
+Create `~/.claude-claw/HEARTBEAT.md` with a checklist:
+
+```markdown
+# Heartbeat checklist
+
+- Check if any background tasks completed
+- Scan for anything urgent the user should know
+- If daytime, do a lightweight check-in if nothing else is pending
+```
+
+**Protocol:** If nothing needs attention, Claude replies `HEARTBEAT_OK` which is suppressed (no spam). Actual alerts are delivered normally.
+
+**Configuration** (env vars in `.env.local`):
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CLAUDE_CLAW_HEARTBEAT_INTERVAL` | `30m` | How often to run (`5m`, `30m`, `1h`, etc.) |
+| `CLAUDE_CLAW_HEARTBEAT_HOURS` | _(24/7)_ | Active hours, e.g. `09:00-22:00` |
 
 ## Cron jobs
 
-Create JSON files in `~/.claude-claw/cronjobs/` to schedule recurring prompts:
+Create JSON files in `~/.claude-claw/cronjobs/` to schedule prompts.
+
+**Time-based** (runs daily at a specific time):
 
 ```json
 {
@@ -110,7 +137,17 @@ Create JSON files in `~/.claude-claw/cronjobs/` to schedule recurring prompts:
 }
 ```
 
-One-shot jobs (run once, then auto-disable):
+**Interval-based** (runs every N seconds/minutes/hours):
+
+```json
+{
+  "id": "status-check",
+  "interval": "5m",
+  "action": { "type": "message", "prompt": "Quick status check on running deployments" }
+}
+```
+
+**One-shot** (runs once at a specific date/time, then auto-disables):
 
 ```json
 {
@@ -121,7 +158,13 @@ One-shot jobs (run once, then auto-disable):
 }
 ```
 
-Jobs are checked every 60 seconds and emitted as channel notifications for Claude to handle.
+Interval formats: `30s`, `5m`, `1h`. Time format: `HH:MM`. Date format: `YYYY-MM-DD`.
+
+## Memory
+
+Claude Code has a built-in memory system that persists across sessions. claudeclaw channels instruct Claude to save important facts, preferences, and decisions from chat conversations automatically — ensuring continuity even after context compaction.
+
+No extra configuration needed. Claude manages its own memory at `~/.claude/projects/*/memory/`.
 
 ## What you get for free from Claude Code
 
@@ -131,6 +174,7 @@ Jobs are checked every 60 seconds and emitted as channel notifications for Claud
 - MCP server support
 - CLAUDE.md project instructions
 - Hooks system
+- Built-in memory persistence
 - 100% compatibility with Claude Code extensions (oh-my-claudecode, etc.)
 
 ## Adding a new channel
